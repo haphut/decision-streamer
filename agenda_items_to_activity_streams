@@ -13,16 +13,6 @@ CITY_COUNCIL_ID = '02900'
 PAYLOAD = {'format': 'json', 'order_by': '-meeting__date',
            'meeting__policymaker__origin_id': CITY_COUNCIL_ID}
 
-#DEMOCRACYOS_BASE_URL = 'https://finnish-democracyos.herokuapp.com/'
-# FIXME: Local version
-DEMOCRACYOS_BASE_URL = 'http://localhost:3000/'
-DEMOCRACYOS_LAW_CREATE_URL = DEMOCRACYOS_BASE_URL + 'api/law/create'
-DEMOCRACYOS_LOGIN_URL = DEMOCRACYOS_BASE_URL + 'signin'
-DEMOCRACYOS_LOGOUT_URL = DEMOCRACYOS_BASE_URL + 'signout'
-
-USERNAME = 'example@example.com'
-PASSWORD = 'password'
-
 
 # FIXME: Create a class for agenda items. The class should do correctness checking.
 
@@ -87,154 +77,12 @@ def agenda_item_to_activity_stream(agenda_item):
     return activity_stream
 
 
-
-# Use the following keys in json or params:
-#      'id lawId title mediaTitle summary clauses source state',
-#      'status open closed public draft deleted tag participants',
-#      'upvotes downvotes abstentions createdAt updatedAt closingAt',
-#      'publishedAt deletedAt votable clauseTruncationText links author authorUrl'
-#
-# corresponds to decisions api:
-# lawId = issue.slug
-# title = (not in use)
-# mediaTitle = issue.subject
-# summary = issue.summary
-# clauses = ?
-# source = permalink
-# state = ?
-# status = ?
-# open = ?
-# closed = ?
-# public = true
-# draft = ?
-# deleted = ?
-# tag = "Kaupunginvaltuusto"
-# participants = ?
-# upvotes = ?
-# downvotes = ?
-# abstentions = ?
-# createdAt = origin_last_modified_time or (no need to specify)
-# updatedAt = issue.last_modified_time or (no need to specify)
-# closingAt = issue.latest_decision_date or (not in use)
-# publishedAt = (no need to specify)
-# deletedAt = (no need to specify)
-# votable = ?
-# clauseTruncationText = ?
-# links = (here goes every dang link?)
-# author = introducer or meeting.policymaker_name
-# authorUrl = ?
-def post_agenda_item(agenda_item):
-    HEADERS = {'content-type': 'application/json'}
-
-    issue = agenda_item['issue']
-    payload = {
-        'lawId': issue['slug'],
-        'mediaTitle': issue['subject'],
-        'summary': issue['summary'],
-        'source': agenda_item['permalink'],
-        'public': 'true',
-        'tag': 'Kaupunginvaltuusto',
-        'createdAt': agenda_item['origin_last_modified_time'],
-        'updatedAt': issue['last_modified_time'],
-        'closingAt': issue['latest_decision_date'],
-        'publishedAt': agenda_item['origin_last_modified_time'],
-        'author': agenda_item['introducer']
-    }
-
-    r = requests.post(DEMOCRACYOS_LAW_CREATE_URL, data=json.dumps(payload),
-                      headers=HEADERS)
-    print("here's the agenda post request")
-    print(r)
-
-
-def login_to_democracyos():
-    HEADERS = {
-        'accept': 'application/json',
-        #'Host': 'finnish-democracyos.herokuapp.com',
-        'Host': 'localhost:3000',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2; rv:10.0.1) Gecko/20100101 Firefox/10.0.1',
-        #Accept-Language': 'en-US,en;q=0.5',
-        #'X-CSRF-Token': 'qPnpT6I0MJOW6BlgK+favhcBb8Hmb0xOhy73A=',
-        #'Referer': 'https://finnish-democracyos.herokuapp.com/signin',
-        'Referer': 'http://localhost:3000',
-        #'Content-Length': '66',
-        #'X-Forwarded-For': '53.154.87.128',
-        #'Via': '1.1 179.119.210.96',
-        #'If-None-Match': 'q1wqvfkrq',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Pragma': 'no-cache',
-        'Cache-Control': 'no-cache',
-        'content-type': 'application/json; charset=UTF-8',
-        #'X-CSRF-Token': 'GgYUqL4tq9UbnjJvjqd0YyaLBvTktyzLWDrLM='
-        'X-CSRF-Token': 'foobar'
-    }
-
-
-    payload = {
-        'email': USERNAME,
-        'password': PASSWORD
-    }
-
-    s = requests.Session()
-    #s.auth = (USERNAME, PASSWORD)
-    s.headers.update(HEADERS)
-    print(s.headers)
-
-    r_get = s.get(DEMOCRACYOS_LOGIN_URL)
-
-    # FIXME: parse csrfToken out of the GET response
-
-    print("here is the login get")
-    #print(r_get)
-    print(r_get.cookies)
-
-    #r = s.post(DEMOCRACYOS_LOGIN_URL, data=json.dumps(payload))
-    #r = s.post(DEMOCRACYOS_LOGIN_URL, data=payload, cookies=r_get.cookies)
-    r = s.post(DEMOCRACYOS_LOGIN_URL, data=json.dumps(payload), cookies=r_get.cookies)
-    #r = requests.post(DEMOCRACYOS_LOGIN_URL, data=json.dumps(payload),
-    #                  headers=HEADERS)
-    print("here's the login post")
-    print(r)
-    print(r.text)
-
-    raw_headers = {
-        'accept': 'application/json',
-        'content-type': 'application/json; charset=UTF-8',
-        #'referer': 'http://localhost:3000/signin',
-        'connection': 'keep-alive'
-    }
-    r_raw = requests.post(DEMOCRACYOS_LOGIN_URL, data=json.dumps(payload),
-                          headers=raw_headers)
-    print(r_raw.text)
-
-    pdb.set_trace()
-
-
-def logout_from_democracyos():
-    HEADERS = {'content-type': 'application/json'}
-
-    #payload = {
-    #    'username': USERNAME,
-    #    'password': PASSWORD
-    #}
-
-    r = requests.get(DEMOCRACYOS_LOGOUT_URL, headers=HEADERS)
-    print("here's the logout get")
-    print(r)
-
-
 r = requests.get(AGENDA_ITEM_URL, params=PAYLOAD)
 try:
     response = r.json()
 except ValueError as e:
     print(e, file=sys.stderr)
 
-#print('starting to log in')
-#login_to_democracyos()
-#print('starting to post')
-## FIXME: only :1 for now
-#[post_agenda_item(agenda_item) for agenda_item in response['objects'][:1]]
 
 activity_streams = [agenda_item_to_activity_stream(agenda_item)
                     for agenda_item in response['objects']]
