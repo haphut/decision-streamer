@@ -3,6 +3,8 @@
 import json
 import pdb
 import sys
+import time
+import uuid
 
 import requests
 
@@ -13,12 +15,16 @@ CITY_COUNCIL_ID = '02900'
 PAYLOAD = {'format': 'json', 'order_by': '-meeting__date',
            'meeting__policymaker__origin_id': CITY_COUNCIL_ID}
 
+ACTIVITY_STREAMS_API_URL = 'http://localhost:8080/'
+ACTIVITY_STREAMS_USERS_URL = ACTIVITY_STREAMS_API_URL + 'users/'
+USERNAME = 'Helsinki Decisions'
+
 
 # FIXME: Create a class for agenda items. The class should do correctness checking.
 
 
 # FIXME: Log erroneous data but don't crash.
-def agenda_item_to_activity_stream(agenda_item):
+def transform_agenda_item_to_activity_stream(agenda_item):
     # FIXME: Should we have less hardcoding and more reading of APIs here?
     ACTOR = {
         'objectType': 'decisionmaker',
@@ -76,24 +82,55 @@ def agenda_item_to_activity_stream(agenda_item):
     }
     return activity_stream
 
+def poll_decisions(last_modified=None):
+    # FIXME: Use last_modified.
+    # FIXME: Read all pages.
+    r = requests.get(AGENDA_ITEM_URL, params=PAYLOAD)
+    try:
+        response = r.json()
+    except ValueError as e:
+        print(e, file=sys.stderr)
+    return response
 
-r = requests.get(AGENDA_ITEM_URL, params=PAYLOAD)
-try:
-    response = r.json()
-except ValueError as e:
-    print(e, file=sys.stderr)
+def get_last_modification_time(activity_streams):
+    #[foo for stream in activity_streams]
+    pass
+
+def push_activity_streams(username, activity_streams):
+    pass
+
+def create_user(username):
+    r = requests.get(ACTIVITY_STREAMS_USERS_URL)
+    res = r.json()
+    names = (item['name'] for item in res['items'])
+    if not username in names:
+        userId = str(uuid.uuid4())
+        post_r = requests.post(ACTIVITY_STREAMS_USERS_URL + '/' + userId,
+                               data={'user': username})
+        # FIXME: Check response
+
+def update_activity_streams():
+    last_modified = None
+    interval_in_seconds = 30
+    username = USERNAME
+
+    create_user(username)
+
+    # FIXME: Make python wake up every n seconds instead of sleeping for n.
+    while True:
+        response = poll_decisions(last_modified)
+        activity_streams = [transform_agenda_item_to_activity_stream(agenda_item)
+                            for agenda_item in response['objects']]
+        last_modified = get_last_modification_time(activity_streams)
+        push_activity_streams(username, activity_streams)
+        time.sleep(interval_in_seconds)
 
 
-activity_streams = [agenda_item_to_activity_stream(agenda_item)
-                    for agenda_item in response['objects']]
-print(json.dumps(activity_streams, sort_keys=True, indent=4,
-      separators=(',', ': ')))
+def main(argv = None):
+    if argv is None:
+        argv = sys.argv
+    update_activity_streams()
 
 
-#def main(argv = None):
-#    if argv is None:
-#        argv = sys.argv
-#
-#
-#if __name__ == "__main__":
-#        sys.exit(main())
+if __name__ == "__main__":
+        sys.exit(main())
